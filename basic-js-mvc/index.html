@@ -1,0 +1,195 @@
+<html>
+<head>
+	<style type = "text/css">
+		.fixWidthTextBox {
+			width : 500px;
+			padding : 4px;
+			border : 2px solid gray;
+			margin : 8px;
+		}
+		.textarea {
+			width : 200px;
+			height: 25px;
+		}
+		.noBulletList {
+			list-style-type: none;
+			padding: 0;
+			margin: 0;
+		}
+		.incompleteToDo {
+			background-color: gray;
+		}
+		.completeToDo {
+			background-color: green;
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="fixWidthTextBox" id="list1HeadArea">
+		<h3> List Name : Work To-Do List </h3><br>
+		<textarea class="textarea" id="list1TextArea"></textarea>
+		<button type="button" id="list1AddButton">Add</button>
+	</div>
+	<div class="fixWidthTextBox" id="list1BodyArea">
+		Nothing added so far...
+	</div>
+
+	<script type="text/javascript">
+		var ToDoApp = {};
+
+		ToDoApp.constructController = function(){
+
+			var handleAddButtonClick = function(modelHandle, eventData){
+				var toDoItem = eventData["toDoItem"];
+				modelHandle.addToDoItem(toDoItem);
+
+			};
+
+			var handleRemoveToDo = function(modelHandle, eventData){
+				modelHandle.removeToDoItem(eventData["indexToRemove"]);
+			};
+
+			var handleMarkToDo = function(){
+
+			};
+
+			return {
+				handleAddButtonClick : handleAddButtonClick,
+				handleRemoveToDo : handleRemoveToDo
+			};
+		};
+
+		ToDoApp.constructModel = function (initialToDoList) {
+			var toDoList = []; 
+			var observers = [];
+
+			var startObserving = function(observer){
+				observers[observers.length] = observer;
+			}
+			//TODO : add stopObserving.
+			var addToDoItem = function(toDoItem, index) {
+				index = index ? index : toDoList.length;
+				var toDoListEntry = {
+					isCompleted : false,
+					toDoItem : toDoItem,
+					id : index
+				};
+				toDoList[index] = toDoListEntry;
+				notifyObservers();
+			};
+
+			var removeToDoItem = function(index){
+				toDoList.splice(index, 1);
+				notifyObservers();
+			}
+
+			//TODO : this should return a deep-copy, so that it is immutable from an outside class.
+			var getToDoList = function(){
+				var toDoListCopy = [];
+				for (var i = 0; i < toDoList.length; i++) {
+					if(toDoList[i]){
+						toDoListCopy[i] = toDoList[i];
+					}
+				};
+				return toDoListCopy;
+			}
+
+			var notifyObservers = function(){
+				for (var i = 0; i < observers.length; i++) {
+					observers[i].toDoListUpdated();
+				};
+			};
+
+			return {
+				addToDoItem : addToDoItem,
+				removeToDoItem : removeToDoItem,
+				startObserving : startObserving,
+				getToDoList : getToDoList
+			};
+
+		};
+
+		ToDoApp.constructView = function(toDoListNo, controllerHandle, modelHandle){
+			var getToDoListHtml = function(toDoList){
+				if(!toDoList.length) return "Nothing added so far...";
+				var toDoHtml = "";
+				var toDoItemHtml;
+				toDoHtml += '<ul class="noBulletList">';
+				for(var i=0; i<toDoList.length; i++){
+					toDoItemHtml = addToDoElement(toDoList[i]);
+					toDoHtml += toDoItemHtml;
+				}
+				toDoHtml += '</ul>';
+
+				return toDoHtml;
+			};
+
+			var addToDoElement = function(toDoListEntry) {
+				var classToAttach = toDoListEntry["isCompleted"] ? "completeToDo" : "incompleteToDo";
+				var idToAttach = toDoListNo + "_li_" + toDoListEntry["id"];
+				var xClassToAttach = "js-" + toDoListNo + "-x";
+
+				toDoItemHtml = '<li class="' + classToAttach + '" >';
+				toDoItemHtml += ('<a id="' + idToAttach + '" class="' + xClassToAttach +'" href=""> [X] </a>');
+				toDoItemHtml += "</a>";
+				toDoItemHtml += toDoListEntry["toDoItem"];
+				toDoItemHtml += "</li>";
+
+				return toDoItemHtml;
+			};
+
+			var toDoListUpdated = function(){
+				var toDoList = modelHandle.getToDoList();
+				var toDoHtml = getToDoListHtml(toDoList);
+				var listArea = document.getElementById("list" + toDoListNo + "BodyArea");
+				listArea.innerHTML = toDoHtml;
+
+				var xElements = listArea.getElementsByClassName("js-" + toDoListNo + "-x");
+				for (var i = 0; i < xElements.length; i++) {
+					xElements[i].addEventListener("click", function(){
+						var triggeringElement = this;
+						var indexToRemove = parseInt(triggeringElement.id.split("_")[2]);
+						var eventData = {};
+						eventData["indexToRemove"] = indexToRemove;
+						controllerHandle.handleRemoveToDo(modelHandle, eventData);
+					});
+				};
+				
+			};
+
+			//initialize the view
+			var addButton = document.getElementById('list' + toDoListNo + 'AddButton'); 
+			var listTextArea = document.getElementById('list' + toDoListNo + 'TextArea');
+			addButton.addEventListener("click", function(){
+				var toDoItem = listTextArea.value;
+				if(!toDoItem) return;
+
+				var eventData = {};
+				eventData["toDoItem"] = toDoItem;
+				controllerHandle.handleAddButtonClick(modelHandle, eventData);
+			});
+
+			//in case there are any to-dos on startup then add them as well
+			toDoListUpdated();
+
+			return {
+				toDoListUpdated : toDoListUpdated
+			};
+
+		};
+
+		ToDoApp.initializeToDoList = function(listNo, listName){
+			var controllerInstance = this.constructController(listNo);
+			var modelInstance = this.constructModel();
+			var viewInstance = this.constructView(listNo, controllerInstance, modelInstance);
+			modelInstance.startObserving(viewInstance);
+		};
+
+		ToDoApp.initializeToDoList(1, "work");
+
+	</script>
+	
+</body>
+</html>

@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+
 <html>
 <head>
 	<style type = "text/css">
@@ -16,11 +18,14 @@
 			padding: 0;
 			margin: 0;
 		}
+		.toDoItem {
+			margin : 2px;
+		}
 		.incompleteToDo {
-			background-color: gray;
+			background-color: #99EE99;
 		}
 		.completeToDo {
-			background-color: green;
+			background-color: #FFCC66;
 		}
 	</style>
 </head>
@@ -33,11 +38,20 @@
 		<button type="button" id="list1AddButton">Add</button>
 	</div>
 	<div class="fixWidthTextBox" id="list1BodyArea">
-		Nothing added so far...
+		Nothing added so far. Use Add button above to add ToDos...
+	</div>
+	<br> <br> <br> <br>
+	<div class="fixWidthTextBox" id="list2HeadArea">
+		<h3> List Name : Home To-Do List </h3><br>
+		<textarea class="textarea" id="list2TextArea"></textarea>
+		<button type="button" id="list2AddButton">Add</button>
+	</div>
+	<div class="fixWidthTextBox" id="list2BodyArea">
+		Nothing added so far. Use Add button above to add ToDos...
 	</div>
 
 	<script type="text/javascript">
-		var ToDoApp = {};
+		var ToDoApp = {}; //namespace
 
 		ToDoApp.constructController = function(){
 
@@ -48,40 +62,99 @@
 			};
 
 			var handleRemoveToDo = function(modelHandle, eventData){
-				modelHandle.removeToDoItem(eventData["indexToRemove"]);
+				modelHandle.removeToDoItem(eventData["idToRemove"]);
 			};
 
-			var handleMarkToDo = function(){
-
+			var handleMarkToDo = function(modelHandle, eventData){
+				modelHandle.markToDo(eventData["idToChange"], eventData["checkedValue"])
 			};
+
+			var handleUpArrowClick = function(modelHandle, eventData){
+				modelHandle.changePos(eventData["id"], -1);
+			}
+
+			var handleDownArrowClick = function(modelHandle, eventData){
+				modelHandle.changePos(eventData["id"], +1);
+			}
 
 			return {
 				handleAddButtonClick : handleAddButtonClick,
-				handleRemoveToDo : handleRemoveToDo
+				handleRemoveToDo : handleRemoveToDo,
+				handleMarkToDo : handleMarkToDo,
+				handleUpArrowClick : handleUpArrowClick,
+				handleDownArrowClick : handleDownArrowClick
+
 			};
 		};
 
 		ToDoApp.constructModel = function (initialToDoList) {
+			// private-fields
 			var toDoList = []; 
 			var observers = [];
+			var currentId = 0;
 
+			//private helper functions
+			var notifyObservers = function(){
+				for (var i = 0; i < observers.length; i++) {
+					observers[i].toDoListUpdated();
+				};
+			};
+
+			var findIndexForId = function(id){
+				var index = -1;
+				for (var i = 0; i < toDoList.length; i++) {
+					if(toDoList[i]["id"] === id){
+						index = i;
+						break;
+					}
+				};
+
+				return index;
+			}
+
+			//public functions
 			var startObserving = function(observer){
 				observers[observers.length] = observer;
-			}
-			//TODO : add stopObserving.
+			};
+			//stopObserving() could be added if required. 
+
+			var markToDo = function(id, isCompleted){ 
+				var index = findIndexForId(id);
+				if(index === -1) return;
+
+				toDoList[index]["isCompleted"] = isCompleted;
+				notifyObservers();
+			};
+
 			var addToDoItem = function(toDoItem, index) {
 				index = index ? index : toDoList.length;
+				currentId++;
 				var toDoListEntry = {
 					isCompleted : false,
 					toDoItem : toDoItem,
-					id : index
+					id : currentId
 				};
 				toDoList[index] = toDoListEntry;
 				notifyObservers();
 			};
 
-			var removeToDoItem = function(index){
+			var removeToDoItem = function(id){
+				var index = findIndexForId(id);
+				if(index === -1) return;
+
 				toDoList.splice(index, 1);
+				notifyObservers();
+			}
+
+			var changePos = function(id, posDiff){// posDiff = -ve : move up, +ve : move down
+				var index = findIndexForId(id);
+				if(index === -1) return;
+
+				var newIndex = index + posDiff;
+				if(newIndex < 0 || newIndex > toDoList.length) return;
+				
+				var removedItem = toDoList.splice(index, 1); 
+				toDoList.splice(newIndex, 0, removedItem[0]); 
 				notifyObservers();
 			}
 
@@ -96,24 +169,21 @@
 				return toDoListCopy;
 			}
 
-			var notifyObservers = function(){
-				for (var i = 0; i < observers.length; i++) {
-					observers[i].toDoListUpdated();
-				};
-			};
-
 			return {
 				addToDoItem : addToDoItem,
 				removeToDoItem : removeToDoItem,
 				startObserving : startObserving,
-				getToDoList : getToDoList
+				getToDoList : getToDoList,
+				markToDo : markToDo,
+				changePos : changePos
 			};
 
 		};
 
 		ToDoApp.constructView = function(toDoListNo, controllerHandle, modelHandle){
+			//private helper functions
 			var getToDoListHtml = function(toDoList){
-				if(!toDoList.length) return "Nothing added so far...";
+				if(!toDoList.length) return "Nothing added so far. Use Add button above to add ToDos...";
 				var toDoHtml = "";
 				var toDoItemHtml;
 				toDoHtml += '<ul class="noBulletList">';
@@ -125,38 +195,101 @@
 
 				return toDoHtml;
 			};
-
 			var addToDoElement = function(toDoListEntry) {
 				var classToAttach = toDoListEntry["isCompleted"] ? "completeToDo" : "incompleteToDo";
 				var idToAttach = toDoListNo + "_li_" + toDoListEntry["id"];
-				var xClassToAttach = "js-" + toDoListNo + "-x";
+				toDoItemHtml = '<li class="' + classToAttach + ' toDoItem" >';
 
-				toDoItemHtml = '<li class="' + classToAttach + '" >';
-				toDoItemHtml += ('<a id="' + idToAttach + '" class="' + xClassToAttach +'" href=""> [X] </a>');
-				toDoItemHtml += "</a>";
-				toDoItemHtml += toDoListEntry["toDoItem"];
+				//up-arrow
+				var uArrClassToAttach = "js-" + toDoListNo + "-uArr";
+				toDoItemHtml += ('<a id="uArr-' + idToAttach + '" class="' + uArrClassToAttach +'" href="javascript:void(0)" title="Move Up"> [&uarr;] </a>');
+				
+				// down-arrow 
+				var dArrClassToAttach = "js-" + toDoListNo + "-dArr";
+				toDoItemHtml += ('<a id="dArr-' + idToAttach + '" class="' + dArrClassToAttach +'" href="javascript:void(0)" title="Move Down"> [&darr;] </a>');
+				
+				//a-tag 
+				var xClassToAttach = "js-" + toDoListNo + "-x";
+				toDoItemHtml += ('<a id="x-' + idToAttach + '" class="' + xClassToAttach +'" href="javascript:void(0)" title="Remove ToDo"> [X] </a>'); 
+				
+				//checkbox
+				var checkedStr = toDoListEntry["isCompleted"] ? "checked" : "";
+				var checkBoxClassToAttach = "js-" + toDoListNo + "-checkBox";
+				var checkBoxTitle = "Mark as " + (toDoListEntry["isCompleted"] ? "incomplete" : "complete");
+				toDoItemHtml += ('<input id="checkBox-'+idToAttach+'" type="checkbox" '+checkedStr+' class="'+checkBoxClassToAttach+'" title="' +checkBoxTitle+ '">'); 
+				
+				//to-do item text
+				toDoItemHtml += ('<span>' + toDoListEntry["toDoItem"] + '</span>');
 				toDoItemHtml += "</li>";
 
 				return toDoItemHtml;
 			};
-
-			var toDoListUpdated = function(){
-				var toDoList = modelHandle.getToDoList();
-				var toDoHtml = getToDoListHtml(toDoList);
-				var listArea = document.getElementById("list" + toDoListNo + "BodyArea");
-				listArea.innerHTML = toDoHtml;
-
+			var attachXMarkEvents = function(listArea){
 				var xElements = listArea.getElementsByClassName("js-" + toDoListNo + "-x");
 				for (var i = 0; i < xElements.length; i++) {
 					xElements[i].addEventListener("click", function(){
 						var triggeringElement = this;
-						var indexToRemove = parseInt(triggeringElement.id.split("_")[2]);
+						var idToRemove = parseInt(triggeringElement.id.split("_")[2]);
 						var eventData = {};
-						eventData["indexToRemove"] = indexToRemove;
+						eventData["idToRemove"] = idToRemove;
 						controllerHandle.handleRemoveToDo(modelHandle, eventData);
 					});
-				};
-				
+				}
+			};
+			var attachChcekBoxEvents = function(listArea){
+				var checkBoxElements = listArea.getElementsByClassName("js-" + toDoListNo + "-checkBox");
+				for (var i = 0; i < checkBoxElements.length; i++) {
+					checkBoxElements[i].addEventListener("change", function(){
+						var triggeringElement = this; 
+						var idToChange = parseInt(triggeringElement.id.split("_")[2]);
+
+						var eventData = {};
+						eventData["idToChange"] = idToChange;
+						eventData["checkedValue"] = triggeringElement.checked;
+						controllerHandle.handleMarkToDo(modelHandle, eventData);
+					});
+				}
+			};
+			var attachUpArrowEvents = function(listArea){
+				var upArrowElements = listArea.getElementsByClassName("js-" + toDoListNo + "-uArr");
+				for (var i = 0; i < upArrowElements.length; i++) { 
+					upArrowElements[i].addEventListener("click", function(){ 
+						var triggeringElement = this; 
+						var id = parseInt(triggeringElement.id.split("_")[2]);
+
+						var eventData = {};
+						eventData["id"] = id;
+						controllerHandle.handleUpArrowClick(modelHandle, eventData);
+					});
+				}
+			};
+			var attachDownArrowEvents = function(listArea){
+				var downArrowElements = listArea.getElementsByClassName("js-" + toDoListNo + "-dArr");
+				for (var i = 0; i < downArrowElements.length; i++) {
+					downArrowElements[i].addEventListener("click", function(){
+						var triggeringElement = this; 
+						var id = parseInt(triggeringElement.id.split("_")[2]);
+
+						var eventData = {};
+						eventData["id"] = id;
+						controllerHandle.handleDownArrowClick(modelHandle, eventData);
+					});
+				}
+			};
+
+			//public functions 
+			var toDoListUpdated = function(){
+				//update the listArea with updated content
+				var toDoList = modelHandle.getToDoList();
+				var toDoHtml = getToDoListHtml(toDoList);
+				var listArea = document.getElementById("list" + toDoListNo + "BodyArea");
+				listArea.innerHTML = toDoHtml;
+			
+				//attach events
+				attachXMarkEvents(listArea);
+				attachChcekBoxEvents(listArea);
+				attachUpArrowEvents(listArea);
+				attachDownArrowEvents(listArea);	
 			};
 
 			//initialize the view
@@ -164,6 +297,7 @@
 			var listTextArea = document.getElementById('list' + toDoListNo + 'TextArea');
 			addButton.addEventListener("click", function(){
 				var toDoItem = listTextArea.value;
+				listTextArea.value = ""; //clearing the text area
 				if(!toDoItem) return;
 
 				var eventData = {};
@@ -188,6 +322,8 @@
 		};
 
 		ToDoApp.initializeToDoList(1, "work");
+		ToDoApp.initializeToDoList(2, "home");
+
 
 	</script>
 	

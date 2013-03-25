@@ -7,23 +7,9 @@ TODOApp.ListItem = Backbone.Model.extend({
 		isCompleted : false
 	},
 	initialize : function(initData){
-		//_.bindAll(this, 'destroyItem', 'switchItemStatus', 'editItem', 'saveItem');
 		this.text = initData.text;
 		this.listNo = initData.listNo;
 	},
-	destroyItem : function(){
-
-	},
-	changeCompletionStatus : function(){
-
-	},
-	editItem : function(){
-
-	}, 
-	saveItem : function(){
-
-	}
-
 });
 
 TODOApp.List = Backbone.Collection.extend({
@@ -34,6 +20,8 @@ TODOApp.List = Backbone.Collection.extend({
 //defining the views 
 
 TODOApp.ListItemView = Backbone.View.extend({
+	tagName : 'li',
+	className : 'toDoItem',
 	initialize : function(initData){
 		_.bindAll(this, "render", "updateCompletionStatus");
 
@@ -51,13 +39,14 @@ TODOApp.ListItemView = Backbone.View.extend({
 	render : function(){
 		var itemHtml = this.compiledTemplate({model : this.model});
 		this.$el.html(itemHtml);
+		this.updateCompletionStatus();
 		return this;
 	},
 	updateCompletionStatus : function(){
 		var isCompleted = this.model.get('isCompleted'); 
 		var classToAttach = isCompleted ? 'completeToDo' : 'incompleteToDo';
 		var classToRemove = isCompleted ? 'incompleteToDo' : 'completeToDo';
-		this.$el.find('li').removeClass(classToRemove).addClass(classToAttach);
+		this.$el.removeClass(classToRemove).addClass(classToAttach);
 	},
 	handleRemoveToDo : function(){
 		this.model.destroy();
@@ -77,6 +66,10 @@ TODOApp.ListView = Backbone.View.extend({
 		this.render();
 		this.$ul = this.$el.find("ul");
 	},
+	events : {
+		'click .js-uArr' : 'handleUpArrowClick',
+		'click .js-dArr' : 'handleDownArrowClick'
+	},
 	appendListItem : function(item){
 		//console.log("appendListItem is called " + item.toSource());
 		var newListItemView = new TODOApp.ListItemView({
@@ -89,6 +82,22 @@ TODOApp.ListView = Backbone.View.extend({
 		var templateHtml = Backbone.$("#listTemplate").html();
 		var compiledTemplate = _.template(templateHtml);
 		this.$el.html(compiledTemplate({}));
+	},
+	handleUpArrowClick : function(event){
+		var $targetElement = Backbone.$(event.target);
+		var $parentElement = $targetElement.parent();
+		var $prevElement = $parentElement.prev("li.toDoItem"); 
+		if($prevElement !== null){
+			$parentElement.after($prevElement);
+		}
+	},
+	handleDownArrowClick : function(event){
+		var $targetElement = Backbone.$(event.target);
+		var $parentElement = $targetElement.parent();
+		var $prevElement = $parentElement.next("li.toDoItem"); 
+		if($prevElement !== null){
+			$parentElement.before($prevElement);
+		}
 	}
 });
 
@@ -139,10 +148,21 @@ TODOApp.ControlsView = Backbone.View.extend({
 
 })();
 
-/*
+
 //for list 2 : home
-TODOApp.list1ControlsView = new TODOApp.ControlsView({
-	el : Backbone.$("#list2HeadArea"),
-	name : "home"
-});*/
+(function(){
+	var collectionInstance = new TODOApp.List({});
+	var listViewInstance = new TODOApp.ListView({
+		collection : collectionInstance,
+		el : Backbone.$("#list2BodyArea")
+	});
+	TODOApp.list1ControlsView = new TODOApp.ControlsView({
+		el : Backbone.$("#list2HeadArea"),
+		collection : collectionInstance,
+		listViewRef : listViewInstance,
+		name : "home",
+		listNo : 2
+	});
+
+})();
 

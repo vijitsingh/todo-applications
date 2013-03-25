@@ -22,3 +22,17 @@
 .completeToDo {
 	background-color: #FFCC66;
 }
+.hiddenToDo {
+	display : none;
+}
+.filterArea {
+	background-color: grey;
+}
+.inactiveFilter {
+	font-weight: bold;
+	font-style: italic;
+}
+.activeFilter {
+	font-style: italic;
+	cursor: pointer;
+}

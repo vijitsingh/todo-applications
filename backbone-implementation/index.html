@@ -22,6 +22,11 @@
 		<h3> List Name : Work To-Do List </h3><br>
 		<textarea class="textarea" id="list1TextArea"></textarea>
 		<button type="button" id="list1AddButton" class="addButton">Add</button>
+		<div class="filterArea">
+			<span class="inactiveFilter js-filter" id="all_1_filter"> All </span>
+			<span class="activeFilter js-filter" id="active_1_filter"> Active </span>
+			<span class="activeFilter js-filter" id="completed_1_filter"> Completed </span>
+		</div>
 	</div>
 	<div class="fixWidthTextBox" id="list1BodyArea">
 		Nothing added so far. Use Add button above to add ToDos...
@@ -32,6 +37,11 @@
 		<h3> List Name : Home To-Do List </h3><br>
 		<textarea class="textarea" id="list2TextArea"></textarea>
 		<button type="button" id="list2AddButton" class="addButton">Add</button>
+		<div class="filterArea">
+			<span class="inactiveFilter js-filter" id="all_2_filter"> All </span>
+			<span class="activeFilter js-filter" id="active_2_filter"> Active </span>
+			<span class="activeFilter js-filter" id="completed_2_filter"> Completed </span>
+		</div>
 	</div>
 	<div class="fixWidthTextBox" id="list2BodyArea">
 		Nothing added so far. Use Add button above to add ToDos...
@@ -42,11 +52,17 @@
 		<a id="dArr-<%=model.listNo%>_li_<%=model.cid%>" class="js-dArr" title="Move Down" href="javascript:void(0)"> [↓] </a>
 		<a id="x-<%=model.listNo%>_li_<%=model.cid%>" class="js-x" title="Remove ToDo" href="javascript:void(0)"> [X] </a>
 		<input id="checkBox-<%=model.listNo%>_li_<%=model.cid%>" class="js-checkBox" type="checkbox" title="Mark as complete">
-		<span><%=model.text%></span>
+		<span><%=model.get('text')%></span>
 	</script>
 
 	<script type="text/template" id="listTemplate">
 		<ul class="noBulletList"> </ul>
+	</script>
+
+	<script type="text/template" id="editItemTemplate">
+		<input type="text" value="<%=model.get('text')%>" class="js-editTextBox">
+		<a class="js-saveItem" title="Save Item" href="javascript:void(0)"> [Save] </a>
+		<a class="js-cancelEdit" title="Cancel Edit" href="javascript:void(0)"> [Cancel Edit] </a>
 	</script>
 
 	<script src="js/main.js"></script>

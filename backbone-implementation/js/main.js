@@ -23,23 +23,31 @@ TODOApp.ListItemView = Backbone.View.extend({
 	tagName : 'li',
 	className : 'toDoItem',
 	initialize : function(initData){
-		_.bindAll(this, "render", "updateCompletionStatus");
+		_.bindAll(this, "render", "updateCompletionStatus", "saveItem");
 
 		//TODO: this should be done only once, not at the time of initiazation each time. 
 		var templateHtml = Backbone.$("#listItemTemplate").html();
 		this.compiledTemplate = _.template(templateHtml);
+		var editTemplateHtml = Backbone.$("#editItemTemplate").html();
+		this.compiledEditTemplate = _.template(editTemplateHtml);
+
+		this.filterType = initData.filterType;
 
 		//bind to model events
 		this.model.bind("change:isCompleted", this.updateCompletionStatus);
 	},
 	events : {
-		'click .js-x' : 'handleRemoveToDo',
-		'change .js-checkBox' : 'handleCheckBoxChange'
+		'click .js-x' : 'handleRemoveToDo', //TODO: change names
+		'change .js-checkBox' : 'handleCheckBoxChange',
+		'dblclick' : 'editItem',
+		'click .js-saveItem' : 'saveItem',
+		'click .js-cancelEdit' : 'cancelEdit'
 	},
-	render : function(){
+	render : function(){ 
 		var itemHtml = this.compiledTemplate({model : this.model});
 		this.$el.html(itemHtml);
 		this.updateCompletionStatus();
+		this.applyFilter(this.filterType); //depending upon the current filter, it would/would NOT show itself.
 		return this;
 	},
 	updateCompletionStatus : function(){
@@ -49,20 +57,60 @@ TODOApp.ListItemView = Backbone.View.extend({
 		this.$el.removeClass(classToRemove).addClass(classToAttach);
 	},
 	handleRemoveToDo : function(){
+		this.trigger('removed', this.model.cid);
 		this.model.destroy();
 		this.remove();
 	},
 	handleCheckBoxChange : function(event){ 
-		var targetElementId = '#' + event.target.id;
+		var targetElementId = '#' + event.target.id; //TODO : correct this. 
 		var checkBoxValue = Backbone.$(targetElementId).is(':checked'); 
 		this.model.set('isCompleted', checkBoxValue);
+
+		//depending on the current filter show/hide itself
+		this.applyFilter(this.filterType);
+	}, 
+	editItem : function(event){
+		var itemHtml = this.compiledEditTemplate({model : this.model});
+		this.$el.html(itemHtml);
+		return this;
+	},
+	saveItem : function(){
+		var editedText = this.$el.find('.js-editTextBox').val(); 
+		this.model.set('text', editedText); 
+		this.render();
+	},
+	cancelEdit : function(){
+		this.render();
+	},
+	applyFilter : function(filterType){
+		this.filterType = filterType;
+		switch(filterType){
+			case "all" : 
+				this.showItem();
+				break;
+			case "active" : 
+				this.model.get('isCompleted') ? this.hideItem() : this.showItem();
+				break;
+			case "completed" : 
+				this.model.get('isCompleted') ? this.showItem() : this.hideItem();
+		};
+	},
+	showItem : function(){
+		this.$el.removeClass('hiddenToDo');
+	},
+	hideItem : function(){
+		this.$el.addClass('hiddenToDo');
 	}
 });
 
 TODOApp.ListView = Backbone.View.extend({
+	defaults : {
+		filterType : "all"
+	},
 	initialize : function(initData){
 		_.bindAll(this, "appendListItem");
 		this.collection.on('add', this.appendListItem);
+		this.subViews = {};
 		this.render();
 		this.$ul = this.$el.find("ul");
 	},
@@ -71,11 +119,18 @@ TODOApp.ListView = Backbone.View.extend({
 		'click .js-dArr' : 'handleDownArrowClick'
 	},
 	appendListItem : function(item){
-		//console.log("appendListItem is called " + item.toSource());
 		var newListItemView = new TODOApp.ListItemView({
-			model : item
+			model : item,
+			filterType : this.filterType
 		});
+		this.subViews[item.cid] = newListItemView;
+		this.listenTo(newListItemView, 'removed', this.removeSubView);
 		this.$ul.append(newListItemView.render().el);
+	},
+	removeSubView : function(cid){ 
+		if(this.subViews.hasOwnProperty(cid)){
+			delete this.subViews[cid];
+		}
 	},
 	render : function(){
 		//TODO: this should be done only once, not at the time of initiazation each time. 
@@ -98,6 +153,15 @@ TODOApp.ListView = Backbone.View.extend({
 		if($prevElement !== null){
 			$parentElement.before($prevElement);
 		}
+	},
+	applyFilter : function(filterType){
+		if(this.filterType === filterType) return;
+
+		this.filterType = filterType;
+		//iterate over the subviews and update them
+		Backbone.$.each(this.subViews, function(cid, subView){
+			subView.applyFilter(filterType);
+		});
 	}
 });
 
@@ -105,7 +169,8 @@ TODOApp.ListView = Backbone.View.extend({
 //INITIALIZE : el,  
 TODOApp.ControlsView = Backbone.View.extend({
 	events : {
-		"click .addButton" : "handleAddClick"
+		"click .addButton" : "handleAddClick",
+		"click span.activeFilter" : 'handleFilterSelection'
 	},
 	initialize : function(initData){
 		_.bindAll(this, "handleAddClick");
@@ -115,7 +180,6 @@ TODOApp.ControlsView = Backbone.View.extend({
 		this.$textArea = Backbone.$("#list"+ this.listNo +"TextArea");
 	},
 	handleAddClick : function(){
-		console.log("addButton " + this.name + " clicked");
 		var newListItemText = this.$textArea.val();
 		var newListItem = new TODOApp.ListItem({
 			text : newListItemText,
@@ -124,6 +188,17 @@ TODOApp.ControlsView = Backbone.View.extend({
 		this.collection.add(newListItem);
 
 		this.$textArea.val(""); //clear text area
+	},
+	handleFilterSelection : function(event){
+		var targetElementId = event.target.id;
+		var $targetElement = Backbone.$(event.target);
+		var filterType = targetElementId.split("_")[0]; 
+
+		this.listViewRef.applyFilter(filterType);
+
+		//update the view
+		this.$el.find('span').removeClass('inactiveFilter').addClass('activeFilter');
+		$targetElement.removeClass('activeFilter').addClass('inactiveFilter');
 	}
 });
 

@@ -30,6 +30,7 @@ TODOApp.ListItemView = Backbone.View.extend({
 		this.compiledTemplate = _.template(templateHtml);
 		var editTemplateHtml = Backbone.$("#editItemTemplate").html();
 		this.compiledEditTemplate = _.template(editTemplateHtml);
+		this.isVisible = false; //default value
 
 		this.filterType = initData.filterType;
 
@@ -82,37 +83,56 @@ TODOApp.ListItemView = Backbone.View.extend({
 	cancelEdit : function(){
 		this.render();
 	},
-	applyFilter : function(filterType){
+	applyFilter : function(filterType, resetVisibility){
+		var isItemVisible = false;
+
+		if(resetVisibility){
+			this.isVisible = false;
+		}
 		this.filterType = filterType;
 		switch(filterType){
 			case "all" : 
-				this.showItem();
+				isItemVisible = this.showItem();
 				break;
 			case "active" : 
-				this.model.get('isCompleted') ? this.hideItem() : this.showItem();
+				isItemVisible = this.model.get('isCompleted') ? this.hideItem() : this.showItem();
 				break;
 			case "completed" : 
-				this.model.get('isCompleted') ? this.showItem() : this.hideItem();
+				isItemVisible = this.model.get('isCompleted') ? this.showItem() : this.hideItem();
 		};
+
+		if(isItemVisible !== this.isVisible){
+		    this.trigger('visibility:update', isItemVisible); 
+		    this.isVisible = isItemVisible;
+	    }
+		return isItemVisible;
 	},
 	showItem : function(){
 		this.$el.removeClass('hiddenToDo');
+		return true;
 	},
 	hideItem : function(){
 		this.$el.addClass('hiddenToDo');
+		return false;
 	}
 });
 
 TODOApp.ListView = Backbone.View.extend({
-	defaults : {
-		filterType : "all"
-	},
 	initialize : function(initData){
 		_.bindAll(this, "appendListItem");
+		this.initializeTemplates();
 		this.collection.on('add', this.appendListItem);
 		this.subViews = {};
+		this.noOfItemsVisible = 0; //keeps track of the no. of items visible in this filter.
+		this.filterType = initData.filterType;
 		this.render();
 		this.$ul = this.$el.find("ul");
+		this.$noItemsMsg = this.$el.find(".noItemsMsg");
+		this.applyFilter(this.filterType);
+	},
+	initializeTemplates : function(){
+		var templateHtml = Backbone.$("#listTemplate").html();
+		this.compiledTemplate = _.template(templateHtml);
 	},
 	events : {
 		'click .js-uArr' : 'handleUpArrowClick',
@@ -125,18 +145,18 @@ TODOApp.ListView = Backbone.View.extend({
 		});
 		this.subViews[item.cid] = newListItemView;
 		this.listenTo(newListItemView, 'removed', this.removeSubView);
+		this.listenTo(newListItemView, 'visibility:update', this.handleSubViewVisibilityUpdate);
 		this.$ul.append(newListItemView.render().el);
 	},
 	removeSubView : function(cid){ 
 		if(this.subViews.hasOwnProperty(cid)){
 			delete this.subViews[cid];
+			this.noOfItemsVisible--;
+			this.updateNoItemsMsg();
 		}
 	},
 	render : function(){
-		//TODO: this should be done only once, not at the time of initiazation each time. 
-		var templateHtml = Backbone.$("#listTemplate").html();
-		var compiledTemplate = _.template(templateHtml);
-		this.$el.html(compiledTemplate({}));
+		this.$el.html(this.compiledTemplate({}));
 	},
 	handleUpArrowClick : function(event){
 		var $targetElement = Backbone.$(event.target);
@@ -154,14 +174,34 @@ TODOApp.ListView = Backbone.View.extend({
 			$parentElement.before($prevElement);
 		}
 	},
-	applyFilter : function(filterType){
-		if(this.filterType === filterType) return;
+	applyFilter : function(filterType){ 
+		var isItemVisible;
 
+		this.noOfItemsVisible = 0; //reset the value
 		this.filterType = filterType;
 		//iterate over the subviews and update them
 		Backbone.$.each(this.subViews, function(cid, subView){
-			subView.applyFilter(filterType);
+			subView.applyFilter(filterType, true);
 		});
+
+		this.updateNoItemsMsg();
+	},
+	updateNoItemsMsg : function(){
+		this.noOfItemsVisible <= 0 ? this.showNoItemsMsg() : this.hideNoItemsMsg();
+	},
+	showNoItemsMsg : function(){
+		this.$noItemsMsg.removeClass('hiddenToDo');
+	},
+	hideNoItemsMsg : function(){
+		this.$noItemsMsg.addClass('hiddenToDo');
+	},
+	handleSubViewVisibilityUpdate : function(isItemVisible){ //TODO: check could be made to ensure a visible view is NOT made visible again. 
+		if(isItemVisible) this.noOfItemsVisible++;
+		else {
+			this.noOfItemsVisible = (this.noOfItemsVisible > 0) ? (this.noOfItemsVisible - 1) : 0;
+		}
+
+		this.updateNoItemsMsg();
 	}
 });
 
@@ -208,10 +248,12 @@ TODOApp.ControlsView = Backbone.View.extend({
 
 //for list 1 : work
 (function(){
-	var collectionInstance = new TODOApp.List({});
+	var collectionInstance = new TODOApp.List({
+	});
 	var listViewInstance = new TODOApp.ListView({
 		collection : collectionInstance,
-		el : Backbone.$("#list1BodyArea")
+		el : Backbone.$("#list1BodyArea"),
+		filterType : "all"
 	});
 	TODOApp.list1ControlsView = new TODOApp.ControlsView({
 		el : Backbone.$("#list1HeadArea"),
@@ -226,10 +268,12 @@ TODOApp.ControlsView = Backbone.View.extend({
 
 //for list 2 : home
 (function(){
-	var collectionInstance = new TODOApp.List({});
+	var collectionInstance = new TODOApp.List({
+	});
 	var listViewInstance = new TODOApp.ListView({
 		collection : collectionInstance,
-		el : Backbone.$("#list2BodyArea")
+		el : Backbone.$("#list2BodyArea"),
+		filterType : "all"
 	});
 	TODOApp.list1ControlsView = new TODOApp.ControlsView({
 		el : Backbone.$("#list2HeadArea"),

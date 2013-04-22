@@ -36,3 +36,46 @@ Things I missed or ignored for this implementation :
 5) I should have used a different view for the head-area with add-button to make it more object-oriented and testing-friendly. Again I deliberately decided to 
 	ignore this. <br>
 6) Saving the data on server-side/local-storage. <br>
+7) Instead of attaching events to individual list-items, event-delegation should have been used. 
+
+
+backbone-implementation
+=======================
+
+Learning-objective while implementing this application :
+
+1) To understand backbone-framework and get-familiarized and use the basic backbone functionalities.
+2) To understand the use of client-side templates and use them. I have used underscore-library's template. 
+3) To provide a local-storage backup to save the lists and their states. Have used a localStorage-library-add for backbone. 
+4) Implement couple of more features than the basic implementation like : a) Filters. b) Edit-TODO support. 
+
+
+Things which are better than the previous basic-implementation : 
+
+1) In the basic-mvc implementation, the entire view redraws itself even on smaller updates like markToDo. This has been fixed in this <br>
+   implementation and only the portions which need an update are redrawn/changed. 
+2) The composite-pattern is followed in this implementation. Each list-item has its own view. This I guess has helped in 2 ways : <br>
+   (a) One-clas, one-responsibility. There is a clear segregation of logic and listItemView owns the responsibility which deals with only <br>
+       list-items. 
+   (b) Helped in keeping the main view class's size in check. 
+3) The use of client-templates has helped in keeping the JS code clean and segregated business-logic (Javascript) and presentation-logic (css/html) <br>
+   to a decent extent. 
+4) Overall I feel the backbone APIs abstracted out the petty details and helped me concentrate on the business-logic implementation <br>
+   and it was easier to add features once the basic structure was in place. 
+
+Things I missed or ignored for this implementation because of the lack of time:
+
+1) More comments were certainly required. 
+2) Couldn't implement some minor TODOs (mentioned in the comments) which could have cleaned the code further.
+3) Each module could be divided into their seperate JS files. 
+4) Currently all the methods are public even the ones which should be private. This is bad. I couldn't find an easy way in backbone to <br>
+     have private methods/variables. I would further investigate into this on what is the recommended way in backbone to attain privacy. 
+5) The initialization code could be made better. 
+6) Though I have tried to handle most of the edge-cases, there is a known issue : " If say on complete filter type and click on down, <br>
+   even if there is only one value, would move down if total there are many. In other words, up-down keys should be filter-aware". <br>
+   Did NOT get a chance to fix this. 
+
+Few points to think over/investigate: 
+
+1) Events associated to each items are a good candidate for event-delegation. Does backbone attach events using delegation internally ? 
+2) Does this implementation abide by the rule to minimize layout-reflows ? I guess yes mostly. Need to think more. 

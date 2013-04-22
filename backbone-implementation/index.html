@@ -52,7 +52,7 @@
 		<a id="uArr-<%=model.listNo%>_li_<%=model.cid%>" class="js-uArr" title="Move Up" href="javascript:void(0)"> [↑] </a>
 		<a id="dArr-<%=model.listNo%>_li_<%=model.cid%>" class="js-dArr" title="Move Down" href="javascript:void(0)"> [↓] </a>
 		<a id="x-<%=model.listNo%>_li_<%=model.cid%>" class="js-x" title="Remove ToDo" href="javascript:void(0)"> [X] </a>
-		<input id="checkBox-<%=model.listNo%>_li_<%=model.cid%>" class="js-checkBox" type="checkbox" title="Mark as complete">
+		<input id="checkBox-<%=model.listNo%>_li_<%=model.cid%>" class="js-checkBox" <%=model.get('isCompleted') ? 'checked' : ''%> type="checkbox" title="Mark As complete">
 		<span><%=model.get('text')%></span>
 	</script>
 

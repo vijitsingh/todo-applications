@@ -2,6 +2,9 @@ var TODOApp = {}; //global container for the app
 
 //Defining the models
 
+/**
+	Model for each list-item
+**/
 TODOApp.ListItem = Backbone.Model.extend({
 	defaults : {
 		isCompleted : false
@@ -12,8 +15,14 @@ TODOApp.ListItem = Backbone.Model.extend({
 	},
 });
 
+/**
+	Collection for the list-items
+**/
 TODOApp.List = Backbone.Collection.extend({
-	model : TODOApp.ListItem
+	model : TODOApp.ListItem,
+	initialize : function(initData){
+		this.localStorage = initData["localStorage"];
+	}
 });
 
 
@@ -25,8 +34,8 @@ TODOApp.ListItemView = Backbone.View.extend({
 	initialize : function(initData){
 		_.bindAll(this, "render", "updateCompletionStatus", "saveItem");
 
-		//TODO: this should be done only once, not at the time of initiazation each time. 
-		var templateHtml = Backbone.$("#listItemTemplate").html();
+		//TODO: this should be done only once for the class, not at the time of initiazation each time. 
+		var templateHtml = Backbone.$("#listItemTemplate").html(); //TODO: move template-initialization to a different method
 		this.compiledTemplate = _.template(templateHtml);
 		var editTemplateHtml = Backbone.$("#editItemTemplate").html();
 		this.compiledEditTemplate = _.template(editTemplateHtml);
@@ -37,6 +46,10 @@ TODOApp.ListItemView = Backbone.View.extend({
 		//bind to model events
 		this.model.bind("change:isCompleted", this.updateCompletionStatus);
 	},
+	/**
+		Backbone automatically delegates the events for the ones mentioned in events hash. So the events get attached for the items
+        added later as well. 
+	**/
 	events : {
 		'click .js-x' : 'handleRemoveToDo', //TODO: change names
 		'change .js-checkBox' : 'handleCheckBoxChange',
@@ -47,6 +60,7 @@ TODOApp.ListItemView = Backbone.View.extend({
 	render : function(){ 
 		var itemHtml = this.compiledTemplate({model : this.model});
 		this.$el.html(itemHtml);
+		this.$el.attr('title', 'Double-click to EDIT ToDo');
 		this.updateCompletionStatus();
 		this.applyFilter(this.filterType); //depending upon the current filter, it would/would NOT show itself.
 		return this;
@@ -66,6 +80,7 @@ TODOApp.ListItemView = Backbone.View.extend({
 		var targetElementId = '#' + event.target.id; //TODO : correct this. 
 		var checkBoxValue = Backbone.$(targetElementId).is(':checked'); 
 		this.model.set('isCompleted', checkBoxValue);
+		this.model.save();
 
 		//depending on the current filter show/hide itself
 		this.applyFilter(this.filterType);
@@ -78,11 +93,19 @@ TODOApp.ListItemView = Backbone.View.extend({
 	saveItem : function(){
 		var editedText = this.$el.find('.js-editTextBox').val(); 
 		this.model.set('text', editedText); 
+		this.model.save();
 		this.render();
 	},
 	cancelEdit : function(){
 		this.render();
 	},
+	/**
+		When a filter is selected the listView calls each of its subviews to apply the selected filter. 
+		Each subview here is responsible for hiding/showing themselves based upon the filter. 
+		It also triggers a visibility:update if its visibility has changed. The update is required for 
+		parentView to keep track of how many items are visible so that it could show "no items" msg if none
+		are visible. 
+	**/
 	applyFilter : function(filterType, resetVisibility){
 		var isItemVisible = false;
 
@@ -205,8 +228,9 @@ TODOApp.ListView = Backbone.View.extend({
 	}
 });
 
-// where all controls like Add, showCompleted, showInCompleted et al are present.
-//INITIALIZE : el,  
+/** 
+    View where all controls like Add, showCompleted, showInCompleted et al are present.  
+**/
 TODOApp.ControlsView = Backbone.View.extend({
 	events : {
 		"click .addButton" : "handleAddClick",
@@ -221,7 +245,7 @@ TODOApp.ControlsView = Backbone.View.extend({
 	},
 	handleAddClick : function(){
 		var newListItemText = this.$textArea.val();
-		var newListItem = new TODOApp.ListItem({
+		var newListItem = this.collection.create({
 			text : newListItemText,
 			listNo : this.listNo
 		});
@@ -249,6 +273,7 @@ TODOApp.ControlsView = Backbone.View.extend({
 //for list 1 : work
 (function(){
 	var collectionInstance = new TODOApp.List({
+		localStorage: new Backbone.LocalStorage("toDo-1")
 	});
 	var listViewInstance = new TODOApp.ListView({
 		collection : collectionInstance,
@@ -263,12 +288,15 @@ TODOApp.ControlsView = Backbone.View.extend({
 		listNo : 1
 	});
 
+	collectionInstance.fetch();
+
 })();
 
 
 //for list 2 : home
 (function(){
 	var collectionInstance = new TODOApp.List({
+		localStorage: new Backbone.LocalStorage("toDo-2")
 	});
 	var listViewInstance = new TODOApp.ListView({
 		collection : collectionInstance,
@@ -282,6 +310,8 @@ TODOApp.ControlsView = Backbone.View.extend({
 		name : "home",
 		listNo : 2
 	});
+
+	collectionInstance.fetch();
 
 })();
 
